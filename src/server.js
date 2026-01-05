@@ -2,6 +2,7 @@ import "dotenv/config";
 import app from "./app.js";
 import { connectDB } from "./config/db.js";
 import { initializeFirebase } from "./config/firebase.js";
+import { validateEnvironment } from "./config/env.js";
 
 const PORT = process.env.PORT || 5000;
 
@@ -10,6 +11,9 @@ const PORT = process.env.PORT || 5000;
  */
 const startServer = async () => {
   try {
+    // Validate environment variables
+    validateEnvironment();
+
     // Initialize Firebase Admin
     initializeFirebase();
 

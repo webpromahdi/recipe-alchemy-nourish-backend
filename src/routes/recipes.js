@@ -9,6 +9,8 @@ import {
   recipeSearchSchema,
   recipeGenerationSchema,
 } from "../validators/schemas.js";
+import { generateRecipe } from "../services/gemini.js";
+import { validateAIRecipe } from "../validators/aiResponseSchema.js";
 import mongoose from "mongoose";
 
 const router = express.Router();
@@ -370,7 +372,7 @@ router.delete("/:id", authenticate, async (req, res) => {
 });
 
 // ============================================================================
-// POST /api/recipes/generate - Generate Recipe with AI (Stub)
+// POST /api/recipes/generate - Generate Recipe with AI (Gemini)
 // ============================================================================
 router.post(
   "/generate",
@@ -379,72 +381,52 @@ router.post(
   async (req, res) => {
     try {
       const params = req.body;
+      const userId = req.user.uid;
 
-      // TODO: Integrate with AI service (OpenAI, Anthropic, etc.)
-      // For now, return a mock generated recipe aligned with frontend model
+      let aiRecipeData;
+      let retryCount = 0;
+      const maxRetries = 2;
 
-      const mockRecipe = {
-        userId: req.user.uid,
-        title: `${params.cuisineType || "Delicious"} ${
-          params.mealType || "Meal"
-        }`,
-        subtitle: "AI-Generated Recipe",
-        description: `A delicious ${
-          params.cuisineType || "international"
-        } dish tailored to your preferences.`,
-        prepTime: "15 min",
-        cookTime: "25 min",
-        servings: params.servings || 4,
-        calories: params.maxCalories || 350,
-        difficulty: params.difficulty || "Medium",
-        tags: params.dietaryPreferences || ["Healthy"],
-        cuisine: params.cuisineType || "International",
-        imageUrl: "https://via.placeholder.com/800x600?text=Recipe+Image",
-        nutrition: {
-          protein: "18g",
-          carbs: "45g",
-          fat: "12g",
-          fiber: "8g",
-          sodium: "450mg",
-        },
-        ingredients: [
-          { amount: "2 cups", item: "Main ingredient" },
-          { amount: "1 tbsp", item: "Seasoning" },
-          { amount: "1/2 cup", item: "Supporting ingredient" },
-        ],
-        steps: [
-          {
-            number: 1,
-            title: "Preparation",
-            description: "Prepare all ingredients as specified.",
-            tip: "Keep ingredients at room temperature for best results.",
-          },
-          {
-            number: 2,
-            title: "Cooking",
-            description: "Cook according to instructions.",
-          },
-          {
-            number: 3,
-            title: "Serving",
-            description: "Serve hot and enjoy!",
-          },
-        ],
-        shoppingList: [
-          {
-            category: "Produce",
-            items: ["Main ingredient"],
-          },
-          {
-            category: "Pantry",
-            items: ["Seasoning", "Supporting ingredient"],
-          },
-        ],
+      // Attempt to generate recipe with retry logic
+      while (retryCount < maxRetries) {
+        try {
+          // Call Gemini AI service
+          const rawAIResponse = await generateRecipe(params);
+
+          // Validate AI response against schema
+          aiRecipeData = validateAIRecipe(rawAIResponse);
+
+          // If validation passes, break out of retry loop
+          break;
+        } catch (validationError) {
+          retryCount++;
+
+          if (retryCount >= maxRetries) {
+            return res.status(500).json({
+              success: false,
+              error: {
+                code: "AI_VALIDATION_FAILED",
+                message: "AI generated invalid recipe format after retries",
+              },
+              timestamp: new Date(),
+            });
+          }
+
+          // Wait briefly before retry
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+
+      // Prepare recipe data for database
+      const recipeData = {
+        ...aiRecipeData,
+        userId,
         isGenerated: true,
         generationParams: params,
       };
 
-      const recipe = await Recipe.create(mockRecipe);
+      // Save to MongoDB
+      const recipe = await Recipe.create(recipeData);
       const savedRecipe = recipe.toObject();
 
       res.status(201).json({
@@ -452,12 +434,35 @@ router.post(
         data: {
           recipe: savedRecipe,
           generationId: recipe.id,
-          model: "stub-mock-model",
+          model: "gemini-1.5-pro",
         },
         message: "Recipe generated successfully",
         timestamp: new Date(),
       });
     } catch (error) {
+      // Handle specific error types
+      if (error.message?.includes("GEMINI_API_KEY")) {
+        return res.status(503).json({
+          success: false,
+          error: {
+            code: "AI_SERVICE_UNAVAILABLE",
+            message: "AI service is not configured",
+          },
+          timestamp: new Date(),
+        });
+      }
+
+      if (error.message?.includes("AI returned invalid JSON")) {
+        return res.status(500).json({
+          success: false,
+          error: {
+            code: "AI_INVALID_RESPONSE",
+            message: "AI service returned invalid response",
+          },
+          timestamp: new Date(),
+        });
+      }
+
       res.status(500).json({
         success: false,
         error: {
