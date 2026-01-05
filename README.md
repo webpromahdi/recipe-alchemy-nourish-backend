@@ -93,6 +93,7 @@ ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
 5. Update `.env` with the path: `FIREBASE_SERVICE_ACCOUNT_PATH=./serviceAccountKey.json`
 
 **Alternative:** Use environment variables instead:
+
 ```env
 FIREBASE_PROJECT_ID=your-project-id
 FIREBASE_CLIENT_EMAIL=firebase-adminsdk-xxxxx@your-project.iam.gserviceaccount.com
@@ -102,21 +103,25 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY----
 ### 4. Start MongoDB
 
 **Local MongoDB:**
+
 ```bash
 mongod
 ```
 
 **MongoDB Atlas:**
+
 - Use the connection string from your Atlas cluster in `.env`
 
 ### 5. Run the Server
 
 **Development mode:**
+
 ```bash
 npm run dev
 ```
 
 **Production mode:**
+
 ```bash
 npm start
 ```
@@ -126,27 +131,28 @@ The server will start on `http://localhost:5000`
 ## 📚 API Endpoints
 
 ### Health Check
+
 - `GET /health` - Server health status
 
 ### Recipes
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/recipes` | Optional | Search/list recipes with filters |
-| `GET` | `/api/recipes/:id` | Optional | Get recipe by ID |
-| `POST` | `/api/recipes` | Required | Create new recipe |
-| `PUT` | `/api/recipes/:id` | Required | Update recipe (owner only) |
-| `DELETE` | `/api/recipes/:id` | Required | Delete recipe (owner only) |
-| `POST` | `/api/recipes/generate` | Required | Generate AI recipe (stub) |
+| Method   | Endpoint                | Auth     | Description                      |
+| -------- | ----------------------- | -------- | -------------------------------- |
+| `GET`    | `/api/recipes`          | Optional | Search/list recipes with filters |
+| `GET`    | `/api/recipes/:id`      | Optional | Get recipe by ID                 |
+| `POST`   | `/api/recipes`          | Required | Create new recipe                |
+| `PUT`    | `/api/recipes/:id`      | Required | Update recipe (owner only)       |
+| `DELETE` | `/api/recipes/:id`      | Required | Delete recipe (owner only)       |
+| `POST`   | `/api/recipes/generate` | Required | Generate AI recipe (stub)        |
 
 ### Saved Recipes
 
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| `GET` | `/api/users/me/saved` | Required | Get user's saved recipes |
-| `POST` | `/api/users/me/saved` | Required | Save a recipe |
-| `PUT` | `/api/users/me/saved/:recipeId` | Required | Update saved recipe notes/rating |
-| `DELETE` | `/api/users/me/saved/:recipeId` | Required | Unsave a recipe |
+| Method   | Endpoint                        | Auth     | Description                      |
+| -------- | ------------------------------- | -------- | -------------------------------- |
+| `GET`    | `/api/users/me/saved`           | Required | Get user's saved recipes         |
+| `POST`   | `/api/users/me/saved`           | Required | Save a recipe                    |
+| `PUT`    | `/api/users/me/saved/:recipeId` | Required | Update saved recipe notes/rating |
+| `DELETE` | `/api/users/me/saved/:recipeId` | Required | Unsave a recipe                  |
 
 ## 🔐 Authentication
 
@@ -169,6 +175,7 @@ The token is verified using Firebase Admin SDK. User information is attached to 
 ## 📝 Request/Response Format
 
 ### Success Response
+
 ```json
 {
   "success": true,
@@ -179,6 +186,7 @@ The token is verified using Firebase Admin SDK. User information is attached to 
 ```
 
 ### Error Response
+
 ```json
 {
   "success": false,
@@ -194,6 +202,7 @@ The token is verified using Firebase Admin SDK. User information is attached to 
 ## 🔍 Example Requests
 
 ### Create Recipe
+
 ```bash
 curl -X POST http://localhost:5000/api/recipes \
   -H "Authorization: Bearer YOUR_FIREBASE_TOKEN" \
@@ -235,11 +244,13 @@ curl -X POST http://localhost:5000/api/recipes \
 ```
 
 ### Search Recipes
+
 ```bash
 curl "http://localhost:5000/api/recipes?tags=Vegetarian&maxCalories=400&page=1&pageSize=10"
 ```
 
 ### Save Recipe
+
 ```bash
 curl -X POST http://localhost:5000/api/users/me/saved \
   -H "Authorization: Bearer YOUR_FIREBASE_TOKEN" \
@@ -265,11 +276,13 @@ curl -X POST http://localhost:5000/api/users/me/saved \
 ### Manual Testing with curl
 
 Test health endpoint:
+
 ```bash
 curl http://localhost:5000/health
 ```
 
 Test authentication (should fail without token):
+
 ```bash
 curl -X POST http://localhost:5000/api/recipes \
   -H "Content-Type: application/json" \
@@ -294,31 +307,37 @@ curl -X POST http://localhost:5000/api/recipes \
 ### Collections
 
 #### `recipes`
+
 - Stores all recipes (user-created and AI-generated)
 - Indexes: `userId`, `tags`, `cuisine`, `createdAt`, text search on `title` and `description`
 
 #### `savedrecipes`
+
 - Junction table linking users to saved recipes
 - Unique compound index on `(userId, recipeId)`
 - Includes user notes and ratings
 
 #### `usersettings`
+
 - User preferences and settings
 - One-to-one relationship with Firebase users via `userId`
 
 ## 🐛 Troubleshooting
 
 ### MongoDB Connection Issues
+
 - Ensure MongoDB is running: `mongod`
 - Check connection string in `.env`
 - For Atlas: Whitelist your IP address
 
 ### Firebase Authentication Errors
+
 - Verify `serviceAccountKey.json` path is correct
 - Ensure Firebase project is set up correctly
 - Check that frontend is using the same Firebase project
 
 ### Port Already in Use
+
 ```bash
 # Find and kill process using port 5000
 lsof -ti:5000 | xargs kill -9  # macOS/Linux
